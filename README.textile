@@ -202,7 +202,7 @@ define util::mount (
   else {
     $opt2 = "rw,${opt1}"
   }
-# mkdir receive false as defaults of user and group
+#mkdir receive false as defaults of user and group
   if ( $ensure != 'absent')  {
     if ( !defined( Mkdir[$mymp] ) ) {
        mkdir { $mymp: }
@@ -243,7 +243,7 @@ define util::mkdir(
 ) {
     $dir_path = $path ? { false => $name, default => $path }
     exec { "mkdir -p ${dir_path}":
-#       # 'mkdir -p dir' is faster than test
+        #'mkdir -p dir' is faster than test
         onlyif  => "test ! -d ${dir_path}",
     }
     if ( $grupo == false or $grupo == '' ) {
@@ -269,7 +269,7 @@ define util::mkdir(
         }
     }
     else {
-        # Force user and group
+        #Force user and group
         if ( $mode == false ) {
             if ! defined(File["${dir_path}"]) {
                 file { "$dir_path": owner => $usuario, group => $group, }
