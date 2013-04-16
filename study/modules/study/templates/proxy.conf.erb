@@ -1,0 +1,12 @@
+<IfModule mod_proxy.c>
+        ProxyRequests On
+        ProxyVia On
+        <Proxy *>
+            Order deny,allow
+            Deny from all
+            Allow from all
+        </Proxy>
+        ProxyPass               /be/images/    !
+        ProxyPass               /be            http://serverbe:8080/
+        ProxyPassReverse        /be            http://serverbe:8080/
+</IfModule>

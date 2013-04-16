@@ -1,0 +1,24 @@
+Vagrant::Config.run do |config|
+  config.vm.define :studyFE do |fe_config|
+    fe_config.vm.box = "studyFE"
+    fe_config.vm.network :bridged
+    fe_config.vm.forward_port 80, 4000
+    fe_config.vm.provision :puppet do |puppet|
+      puppet.module_path = "modules"
+      puppet.manifests_path = "nodes"
+      puppet.manifest_file = "studyFE.pp" 
+    end
+  end
+
+
+  config.vm.define :studyBE do |be_config|
+    be_config.vm.box = "studyBE"
+    be_config.vm.network :bridged
+    be_config.vm.forward_port 8080, 8888
+    be_config.vm.provision :puppet do |puppet|
+      puppet.module_path = "modules"
+      puppet.manifests_path = "nodes"
+      puppet.manifest_file = "studyBE.pp"
+    end
+  end
+end

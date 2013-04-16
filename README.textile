@@ -1,0 +1,331 @@
+h1. How to Provision a Dev Environment using Vagrant and Puppet:
+
+Reference: http://puppetlabs.com/puppet/puppet-open-source/
+           http://www.vagrantup.com/
+
+
+h3. Download/Install VirtualBox:
+
+https://www.virtualbox.org/wiki/Linux_Downloads
+
+
+
+h3. Download/Install Vagrant package for your distro:
+
+http://downloads.vagrantup.com/tags/v1.0.6
+
+Ex.:
+<pre><code>$ sudo rpm -ivh vagrant_i686.rpm</code></pre>
+
+
+
+h3. Download a Vagrant boxfile:
+
+<pre><code> $ vagrant box add studyFE http://files.vagrantup.com/lucid64.box
+$ vagrant box add studyBE http://files.vagrantup.com/lucid64.box</code></pre>
+
+
+
+h3. Creating the Development Environment:
+
+<pre><code> $ mkdir study
+$ cd study
+$ touch Vagrantfile</code></pre>
+
+
+
+h3. Setting up Vagrantfile:
+We'll set in "Vagrantfile" a config for 2 different boxes:
+studyFE - Our 'FrontEnd server'
+studyBE - Our 'BackEnd server'
+
+<pre><code> $ vim Vagrantfile
+Vagrant::Config.run do |config|
+  config.vm.define :studyFE do |fe_config|
+    fe_config.vm.box = "studyFE"
+    fe_config.vm.network :bridged
+    fe_config.vm.forward_port 80, 4000
+    fe_config.vm.provision :puppet do |puppet|
+      puppet.module_path = "modules"
+      puppet.manifests_path = "nodes"
+      puppet.manifest_file = "studyFE.pp" 
+    end
+  end
+
+
+  config.vm.define :studyBE do |be_config|
+    be_config.vm.box = "studyBE"
+    be_config.vm.network :bridged
+    be_config.vm.forward_port 8080, 8888
+    be_config.vm.provision :puppet do |puppet|
+      puppet.module_path = "modules"
+      puppet.manifests_path = "nodes"
+      puppet.manifest_file = "studyBE.pp"
+    end
+  end
+end</code></pre>
+
+
+
+h3. Specify some basic Puppet setup for each server:
+
+Configuration of the "BackEnd" (studyBE.pp):
+<pre><code> $ vim study/nodes/studyBE.pp
+#Update server
+exec { "apt-get update":
+  path => "/usr/bin",
+}
+
+Exec { path => "/bin:/sbin:/usr/bin:/usr/sbin" }
+
+#Installing/Configuring Apache 
+include study::tomcat6
+#Adding a moutpoint
+util::mount { "/mnt/studyBE":
+  device  => "10.0.2.2:/tmp",
+  options => "defaults,bg,intr",
+  ensure  => "unmounted",
+}
+
+#Adding the adminitration user
+util::adduser { "suporte":
+  shell => '/bin/bash',
+  username => 'suporte',
+}</code></pre>
+
+
+Configuration of the "FrontEnd" (studyFE.pp):
+<pre><code> $ vim study/nodes/studyFE.pp
+#Update server
+exec { "apt-get update":
+  path => "/usr/bin",
+}
+
+Exec { path => "/bin:/sbin:/usr/bin:/usr/sbin" }
+
+#Installing/Configuring Apache 
+include study::apache
+#Adding a moutpoint
+util::mount { "/mnt/meumout":
+  device  => "10.2.48.40:/tmp",
+  options => "defaults,bg,intr",
+  ensure  => "mounted",
+}
+
+#Adding the adminitration user
+util::adduser { "suporte":
+  shell => '/bin/bash',
+  username => 'suporte',
+}</code></pre>
+
+
+
+h3. Creating dependencies:
+- Tomcat installation
+<code><pre> $ vim study/modules/study/manifests/tomcat6.pp
+class study::tomcat6 {
+  package { "tomcat6":
+    ensure  => present,
+    require => Exec["apt-get update"],
+  }
+  service { "tomcat6":
+    ensure  => "running",
+    require => Package["tomcat6"],
+  }
+}</pre></code>
+
+- Apache installation
+<code><pre> $ vim study/modules/study/manifests/apache.pp
+class study::apache {
+  package { "apache2":
+    ensure  => present,
+    require => Exec["apt-get update"],
+  }
+  service { "apache2":
+    ensure  => "running",
+    require => Package["apache2"],
+  }
+  file { "/var/www/study":
+    ensure  => "link",
+    target  => "/vagrant/extras/htdocs-study",
+    require => Package["apache2"],
+    notify  => Service["apache2"],
+  }
+  file { "/etc/hosts":
+    ensure  => "link",
+    target  => "/vagrant/extras/hosts",
+  }
+
+  file { "/etc/apache2/mods-enabled/proxy.load":
+    ensure  => "link",
+    target  => "/etc/apache2/mods-available/proxy.load",
+    require => Package["apache2"],
+    notify  => Service["apache2"],
+  }
+
+  file { "/etc/apache2/mods-enabled/proxy_http.load":
+    ensure  => "link",
+    target  => "/etc/apache2/mods-available/proxy_http.load",
+    require => Package["apache2"],
+    notify  => Service["apache2"],
+  }
+
+  file { '/etc/apache2/mods-enabled/proxy.conf':
+    ensure  => file,
+    owner   => 'root',
+    group   => 'root',
+    mode    => '0755',
+    content => template( 'study/proxy.conf.erb' ),
+    require => Package["apache2"],
+    notify  => Service["apache2"],
+  }
+}</pre></code>
+
+- Define to mount a filesystem
+<code><pre> $ vim study/modules/util/manifests/mount.pp
+define util::mount (
+  $device,
+  $mp           = undef,
+  $options      = 'defaults,bg,intr',
+  $noauto       = false,
+  $readonly     = false,
+  $ensure       = mounted
+) {
+  if ( $mp == undef ) {
+    $mymp = $title
+  }
+  else {
+    $mymp = $mp
+  }
+
+  if ( $noauto ) {
+    $opt1 = "${options},noauto"
+  }
+  else {
+    $opt1 = $options
+  }
+
+  if ( $readonly ) {
+    $opt2 = "ro,${opt1}"
+  }
+  else {
+    $opt2 = "rw,${opt1}"
+  }
+
+  # O mkdir recebe false como defaults de user e group
+  if ( $ensure != 'absent')  {
+    if ( !defined( Mkdir[$mymp] ) ) {
+       mkdir { $mymp: }
+    }
+    $req = Mkdir[$mymp]
+  }
+  else {
+    $req = undef
+  }
+  mount { $mymp:
+    ensure      => $ensure,
+    device      => $device,
+    fstype      => 'nfs',
+    options     => $opt2,
+    remounts    => true,
+    require     => $req,
+    ;
+  }
+}</pre></code>
+
+- Define to add a user
+<code><pre> $ vim study/modules/util/manifests/adduser.pp
+define util::adduser ($username, $shell) {
+  user { $username:
+    ensure => present,
+    home => "/home/$username",
+    shell => "$shell",
+  }
+}</pre></code>
+
+- Define to create a directory
+<code><pre> $ vim study/modules/util/manifests/mkdir.pp
+define util::mkdir(
+    $path       = false,
+    $usuario    = false,
+    $grupo      = false,
+    $mode       = false
+) {
+
+    $dir_path = $path ? { false => $name, default => $path }
+    exec { "mkdir -p ${dir_path}":
+        # Rodar o mkdir -p direto é mais rápido que testar antes, e ainda
+        # permite que o File{} de depois rode como deveria, mas acaba gerando
+        # mais logs de puppet do que o necessário.
+        onlyif  => "test ! -d ${dir_path}",
+    }
+
+    if ( $grupo == false or $grupo == '' ) {
+        $group = $usuario
+    }
+    else {
+        $group = $grupo
+    }
+
+    File {
+        ensure      => directory,
+        require     => Exec["mkdir -p ${dir_path}"],
+    }
+    if ( $usuario == false or $usuario == "" ) {
+        # Não vou forçar um usuário...
+        if ( $mode == false ) {
+            if ! defined(File["${dir_path}"]) {
+                file { "$dir_path": }
+            }
+        }
+        else {
+            if ! defined(File["${dir_path}"]) {
+                file { "$dir_path": mode => $mode, }
+            }
+        }
+    }
+    else {
+        # Força usuario e grupo
+        if ( $mode == false ) {
+            if ! defined(File["${dir_path}"]) {
+                file { "$dir_path": owner => $usuario, group => $group, }
+            }
+        }
+        else {
+            if ! defined(File["${dir_path}"]) {
+                file { "$dir_path": mode => $mode, owner => $usuario, group => $group, }
+            }
+        }
+    }
+}</pre></code>
+
+
+
+h3. Creating a template file for an apache include:
+<code><pre> $ vim study/modules/study/templates/proxy.conf.erb
+<IfModule mod_proxy.c>
+        ProxyRequests On
+        ProxyVia On
+        <Proxy *>
+            Order deny,allow
+            Deny from all
+            Allow from all
+        </Proxy>
+        ProxyPass               /be/images/    !
+        ProxyPass               /be            http://serverbe:8080/
+        ProxyPassReverse        /be            http://serverbe:8080/
+</IfModule></pre></code>
+
+
+
+h3. Starting the VM's:
+
+<pre><code> $ vagrant up studyBE
+ $ vagrant up studyBE</code></pre>
+
+
+
+h2. Author:
+
+Rafael Inocencio <rafael_rci@yahoo.com.br>
+https://github.com/rcicm
