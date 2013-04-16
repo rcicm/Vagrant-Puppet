@@ -21,7 +21,7 @@ Ex.:
 
 h3. Download a Vagrant boxfile:
 
-<pre><code> $ vagrant box add studyFE http://files.vagrantup.com/lucid64.box
+<pre><code>$ vagrant box add studyFE http://files.vagrantup.com/lucid64.box
 $ vagrant box add studyBE http://files.vagrantup.com/lucid64.box</code></pre>
 
 
@@ -35,11 +35,12 @@ $ touch Vagrantfile</code></pre>
 
 
 h3. Setting up Vagrantfile:
+
 We'll set in "Vagrantfile" a config for 2 different boxes:
 studyFE - Our 'FrontEnd server'
 studyBE - Our 'BackEnd server'
 
-<pre><code> $ vim Vagrantfile
+<pre><code>$ vim Vagrantfile
 Vagrant::Config.run do |config|
   config.vm.define :studyFE do |fe_config|
     fe_config.vm.box = "studyFE"
@@ -70,7 +71,7 @@ end</code></pre>
 h3. Specify some basic Puppet setup for each server:
 
 Configuration of the "BackEnd" (studyBE.pp):
-<pre><code> $ vim study/nodes/studyBE.pp
+<pre><code>$ vim study/nodes/studyBE.pp
 #Update server
 exec { "apt-get update":
   path => "/usr/bin",
@@ -95,7 +96,7 @@ util::adduser { "suporte":
 
 
 Configuration of the "FrontEnd" (studyFE.pp):
-<pre><code> $ vim study/nodes/studyFE.pp
+<pre><code>$ vim study/nodes/studyFE.pp
 #Update server
 exec { "apt-get update":
   path => "/usr/bin",
@@ -121,8 +122,9 @@ util::adduser { "suporte":
 
 
 h3. Creating dependencies:
+
 - Tomcat installation
-<code><pre> $ vim study/modules/study/manifests/tomcat6.pp
+<pre><code>$ vim study/modules/study/manifests/tomcat6.pp
 class study::tomcat6 {
   package { "tomcat6":
     ensure  => present,
@@ -132,10 +134,10 @@ class study::tomcat6 {
     ensure  => "running",
     require => Package["tomcat6"],
   }
-}</pre></code>
+}</code></pre>
 
 - Apache installation
-<code><pre> $ vim study/modules/study/manifests/apache.pp
+<pre><code>$ vim study/modules/study/manifests/apache.pp
 class study::apache {
   package { "apache2":
     ensure  => present,
@@ -179,10 +181,10 @@ class study::apache {
     require => Package["apache2"],
     notify  => Service["apache2"],
   }
-}</pre></code>
+}</code></pre>
 
 - Define to mount a filesystem
-<code><pre> $ vim study/modules/util/manifests/mount.pp
+<pre><code>$ vim study/modules/util/manifests/mount.pp
 define util::mount (
   $device,
   $mp           = undef,
@@ -212,7 +214,7 @@ define util::mount (
     $opt2 = "rw,${opt1}"
   }
 
-  # O mkdir recebe false como defaults de user e group
+  # mkdir receive false as defaults of user and group
   if ( $ensure != 'absent')  {
     if ( !defined( Mkdir[$mymp] ) ) {
        mkdir { $mymp: }
@@ -231,20 +233,20 @@ define util::mount (
     require     => $req,
     ;
   }
-}</pre></code>
+}</code></pre>
 
 - Define to add a user
-<code><pre> $ vim study/modules/util/manifests/adduser.pp
+<pre><code>$ vim study/modules/util/manifests/adduser.pp
 define util::adduser ($username, $shell) {
   user { $username:
     ensure => present,
     home => "/home/$username",
     shell => "$shell",
   }
-}</pre></code>
+}</code></pre>
 
 - Define to create a directory
-<code><pre> $ vim study/modules/util/manifests/mkdir.pp
+<pre><code>$ vim study/modules/util/manifests/mkdir.pp
 define util::mkdir(
     $path       = false,
     $usuario    = false,
@@ -254,9 +256,7 @@ define util::mkdir(
 
     $dir_path = $path ? { false => $name, default => $path }
     exec { "mkdir -p ${dir_path}":
-        # Rodar o mkdir -p direto é mais rápido que testar antes, e ainda
-        # permite que o File{} de depois rode como deveria, mas acaba gerando
-        # mais logs de puppet do que o necessário.
+        # 'mkdir -p dir' is faster than test
         onlyif  => "test ! -d ${dir_path}",
     }
 
@@ -272,7 +272,6 @@ define util::mkdir(
         require     => Exec["mkdir -p ${dir_path}"],
     }
     if ( $usuario == false or $usuario == "" ) {
-        # Não vou forçar um usuário...
         if ( $mode == false ) {
             if ! defined(File["${dir_path}"]) {
                 file { "$dir_path": }
@@ -285,7 +284,7 @@ define util::mkdir(
         }
     }
     else {
-        # Força usuario e grupo
+        # Force user and group
         if ( $mode == false ) {
             if ! defined(File["${dir_path}"]) {
                 file { "$dir_path": owner => $usuario, group => $group, }
@@ -297,12 +296,12 @@ define util::mkdir(
             }
         }
     }
-}</pre></code>
+}</code></pre>
 
 
 
 h3. Creating a template file for an apache include:
-<code><pre> $ vim study/modules/study/templates/proxy.conf.erb
+<pre><code>$ vim study/modules/study/templates/proxy.conf.erb
 <IfModule mod_proxy.c>
         ProxyRequests On
         ProxyVia On
@@ -314,14 +313,14 @@ h3. Creating a template file for an apache include:
         ProxyPass               /be/images/    !
         ProxyPass               /be            http://serverbe:8080/
         ProxyPassReverse        /be            http://serverbe:8080/
-</IfModule></pre></code>
+</IfModule></code></pre>
 
 
 
 h3. Starting the VM's:
 
-<pre><code> $ vagrant up studyBE
- $ vagrant up studyBE</code></pre>
+<pre><code>$ vagrant up studyBE
+$ vagrant up studyBE</code></pre>
 
 
 

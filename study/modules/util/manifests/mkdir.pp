@@ -7,9 +7,7 @@ define util::mkdir(
 
     $dir_path = $path ? { false => $name, default => $path }
     exec { "mkdir -p ${dir_path}":
-        # Rodar o mkdir -p direto é mais rápido que testar antes, e ainda
-        # permite que o File{} de depois rode como deveria, mas acaba gerando
-        # mais logs de puppet do que o necessário.
+        # 'mkdir -p dir' is faster than test
         onlyif  => "test ! -d ${dir_path}",
     }
 
@@ -25,7 +23,6 @@ define util::mkdir(
         require     => Exec["mkdir -p ${dir_path}"],
     }
     if ( $usuario == false or $usuario == "" ) {
-        # Não vou forçar um usuário...
         if ( $mode == false ) {
             if ! defined(File["${dir_path}"]) {
                 file { "$dir_path": }
@@ -38,7 +35,7 @@ define util::mkdir(
         }
     }
     else {
-        # Força usuario e grupo
+        # Force user and grup
         if ( $mode == false ) {
             if ! defined(File["${dir_path}"]) {
                 file { "$dir_path": owner => $usuario, group => $group, }

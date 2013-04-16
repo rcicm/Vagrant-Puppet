@@ -27,7 +27,7 @@ define util::mount (
     $opt2 = "rw,${opt1}"
   }
 
-  # O mkdir recebe false como defaults de user e group
+  # mkdir receive false as defaults of user and group
   if ( $ensure != 'absent')  {
     if ( !defined( Mkdir[$mymp] ) ) {
        mkdir { $mymp: }
