@@ -28,7 +28,7 @@ $ vagrant box add studyBE http://files.vagrantup.com/lucid64.box</code></pre>
 
 h3. Creating the Development Environment:
 
-<pre><code> $ mkdir study
+<pre><code>$ mkdir study
 $ cd study
 $ touch Vagrantfile</code></pre>
 
@@ -76,9 +76,7 @@ Configuration of the "BackEnd" (studyBE.pp):
 exec { "apt-get update":
   path => "/usr/bin",
 }
-
 Exec { path => "/bin:/sbin:/usr/bin:/usr/sbin" }
-
 #Installing/Configuring Apache 
 include study::tomcat6
 #Adding a moutpoint
@@ -87,7 +85,6 @@ util::mount { "/mnt/studyBE":
   options => "defaults,bg,intr",
   ensure  => "unmounted",
 }
-
 #Adding the adminitration user
 util::adduser { "suporte":
   shell => '/bin/bash',
@@ -101,9 +98,7 @@ Configuration of the "FrontEnd" (studyFE.pp):
 exec { "apt-get update":
   path => "/usr/bin",
 }
-
 Exec { path => "/bin:/sbin:/usr/bin:/usr/sbin" }
-
 #Installing/Configuring Apache 
 include study::apache
 #Adding a moutpoint
@@ -112,7 +107,6 @@ util::mount { "/mnt/meumout":
   options => "defaults,bg,intr",
   ensure  => "mounted",
 }
-
 #Adding the adminitration user
 util::adduser { "suporte":
   shell => '/bin/bash',
@@ -157,21 +151,18 @@ class study::apache {
     ensure  => "link",
     target  => "/vagrant/extras/hosts",
   }
-
   file { "/etc/apache2/mods-enabled/proxy.load":
     ensure  => "link",
     target  => "/etc/apache2/mods-available/proxy.load",
     require => Package["apache2"],
     notify  => Service["apache2"],
   }
-
   file { "/etc/apache2/mods-enabled/proxy_http.load":
     ensure  => "link",
     target  => "/etc/apache2/mods-available/proxy_http.load",
     require => Package["apache2"],
     notify  => Service["apache2"],
   }
-
   file { '/etc/apache2/mods-enabled/proxy.conf':
     ensure  => file,
     owner   => 'root',
@@ -199,22 +190,19 @@ define util::mount (
   else {
     $mymp = $mp
   }
-
   if ( $noauto ) {
     $opt1 = "${options},noauto"
   }
   else {
     $opt1 = $options
   }
-
   if ( $readonly ) {
     $opt2 = "ro,${opt1}"
   }
   else {
     $opt2 = "rw,${opt1}"
   }
-
-  # mkdir receive false as defaults of user and group
+# mkdir receive false as defaults of user and group
   if ( $ensure != 'absent')  {
     if ( !defined( Mkdir[$mymp] ) ) {
        mkdir { $mymp: }
@@ -253,20 +241,17 @@ define util::mkdir(
     $grupo      = false,
     $mode       = false
 ) {
-
     $dir_path = $path ? { false => $name, default => $path }
     exec { "mkdir -p ${dir_path}":
-        # 'mkdir -p dir' is faster than test
+#       # 'mkdir -p dir' is faster than test
         onlyif  => "test ! -d ${dir_path}",
     }
-
     if ( $grupo == false or $grupo == '' ) {
         $group = $usuario
     }
     else {
         $group = $grupo
     }
-
     File {
         ensure      => directory,
         require     => Exec["mkdir -p ${dir_path}"],
@@ -301,6 +286,7 @@ define util::mkdir(
 
 
 h3. Creating a template file for an apache include:
+
 <pre><code>$ vim study/modules/study/templates/proxy.conf.erb
 <IfModule mod_proxy.c>
         ProxyRequests On
@@ -310,7 +296,6 @@ h3. Creating a template file for an apache include:
             Deny from all
             Allow from all
         </Proxy>
-        ProxyPass               /be/images/    !
         ProxyPass               /be            http://serverbe:8080/
         ProxyPassReverse        /be            http://serverbe:8080/
 </IfModule></code></pre>
